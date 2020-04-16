@@ -1,0 +1,50 @@
+on: [push]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    
+    - uses: azure/docker-login@v1
+      with:
+        login-server: acrgj01.azurecr.io
+        username: ${{ secrets.acr_acrgj01_username }}
+        password: ${{ secrets.acr_acrgj01_password }}
+    
+    - name: Build and push image to ACR
+      id: build-image
+      run: |
+        docker build "$GITHUB_WORKSPACE/*" -f  "https://github.com/chef-cookbooks/docker.git" -t acrgj01.azurecr.io/aksgj01:${{ github.sha }}
+        docker push acrgj01.azurecr.io/aksgj01:${{ github.sha }}
+    
+    - uses: azure/k8s-set-context@v1
+      with:
+         kubeconfig: ${{ secrets.aks_aksgj01_kubeConfig }}
+      id: login
+    
+    - name: Create namespace
+      run: |
+        namespacePresent=`kubectl get namespace | grep aksgj01aa44 | wc -l`
+        if [ $namespacePresent -eq 0 ]
+        then
+            echo `kubectl create namespace aksgj01aa44`
+        fi
+
+    - uses: azure/k8s-create-secret@v1
+      with:
+        namespace: aksgj01aa44
+        container-registry-url: acrgj01.azurecr.io
+        container-registry-username: ${{ secrets.acr_acrgj01_username }}
+        container-registry-password: ${{ secrets.acr_acrgj01_password }}
+        secret-name: aksgj01dockerauth
+       
+    - uses: azure/k8s-deploy@v1
+      with:
+        namespace: aksgj01aa44
+        manifests: |
+          manifests/deployment.yml
+          manifests/service.yml
+        images: |
+          acrgj01.azurecr.io/aksgj01:${{ github.sha }}
+        imagepullsecrets: |
+          aksgj01dockerauth
