@@ -1,0 +1,16 @@
+apiVersion : apps/v1beta1
+kind: Deployment
+metadata:
+  name: "aksgj01"
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: "aksgj01"
+    spec:
+      containers:
+        - name: "aksgj01"
+          image: "acrgj01.azurecr.io/aksgj01"
+          ports:
+          - containerPort: 8080
